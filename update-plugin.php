@@ -44,10 +44,10 @@ echo "════════════════════════�
 
 // Full class files from GitHub raw
 $files = [
-    'includes/class-location-sync.php' => 'https://raw.githubusercontent.com/zaomir/rovlex/claude-read-integration-plan-t56To/includes/class-location-sync.php',
-    'includes/class-admin-redirect.php' => 'https://raw.githubusercontent.com/zaomir/rovlex/claude-read-integration-plan-t56To/includes/class-admin-redirect.php',
-    'includes/class-data-sync.php' => 'https://raw.githubusercontent.com/zaomir/rovlex/claude-read-integration-plan-t56To/includes/class-data-sync.php',
-    'includes/class-listing-display.php' => 'https://raw.githubusercontent.com/zaomir/rovlex/claude-read-integration-plan-t56To/includes/class-listing-display.php',
+    'includes/class-location-sync.php' => 'https://raw.githubusercontent.com/zaomir/rovlex/claude/read-integration-plan-t56To/includes/class-location-sync.php',
+    'includes/class-admin-redirect.php' => 'https://raw.githubusercontent.com/zaomir/rovlex/claude/read-integration-plan-t56To/includes/class-admin-redirect.php',
+    'includes/class-data-sync.php' => 'https://raw.githubusercontent.com/zaomir/rovlex/claude/read-integration-plan-t56To/includes/class-data-sync.php',
+    'includes/class-listing-display.php' => 'https://raw.githubusercontent.com/zaomir/rovlex/claude/read-integration-plan-t56To/includes/class-listing-display.php',
 ];
 
 $updated = 0;
