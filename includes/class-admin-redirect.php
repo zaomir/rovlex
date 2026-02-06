@@ -11,8 +11,8 @@ class Rovlex_Admin_Redirect {
         // Show notice in admin
         add_action('admin_notices', [$this, 'show_amelia_notice']);
 
-        // Add manage button on listing dashboard
-        add_action('listeo_dashboard_listing_actions', [$this, 'add_manage_button'], 10, 1);
+        // Add manage button on listing dashboard - DISABLED
+        // add_action('listeo_dashboard_listing_actions', [$this, 'add_manage_button'], 10, 1);
     }
 
     /**
