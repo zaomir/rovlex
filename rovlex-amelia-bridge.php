@@ -20,6 +20,11 @@ require_once ROVLEX_AB_PATH . 'includes/class-data-sync.php';
 require_once ROVLEX_AB_PATH . 'includes/class-listing-display.php';
 require_once ROVLEX_AB_PATH . 'includes/class-admin-redirect.php';
 
+// Load WP-CLI commands
+if (defined('WP_CLI') && WP_CLI) {
+    require_once ROVLEX_AB_PATH . 'tests/wp-cli-test.php';
+}
+
 // Initialize plugin
 add_action('plugins_loaded', function() {
     // Check if Amelia is active
