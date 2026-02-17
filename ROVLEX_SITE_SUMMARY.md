@@ -135,23 +135,109 @@ Most listings are test entries. **saloon44** (ID:458) is the most complete.
 
 ---
 
-## 7. Listeo–Amelia Integration (Key Finding)
+## 7. Amelia Database (Full Dump)
 
-**Listing "saloon44" (ID:458) meta:**
+### 7.1 Amelia Tables (48 tables, prefix: wp_amelia_)
 
-```
-Amelia Location Id:           22
-Custom Tab Amelia Location Id: 22
-Booking Enabled:              1
-Booking Opens Apply:          immediately
-Booking Closes Apply:         never
-Rovlex Last Sync:             2026-02-17 13:34:27
-```
+`wp_amelia_appointments`, `wp_amelia_cache`, `wp_amelia_categories`, `wp_amelia_coupons`, `wp_amelia_coupons_to_events`, `wp_amelia_coupons_to_packages`, `wp_amelia_coupons_to_services`, `wp_amelia_custom_fields`, `wp_amelia_custom_fields_events`, `wp_amelia_custom_fields_options`, `wp_amelia_custom_fields_services`, `wp_amelia_customer_bookings`, `wp_amelia_customer_bookings_to_events_periods`, `wp_amelia_customer_bookings_to_events_tickets`, `wp_amelia_customer_bookings_to_extras`, `wp_amelia_events`, `wp_amelia_events_periods`, `wp_amelia_events_tags`, `wp_amelia_events_to_providers`, `wp_amelia_events_to_tickets`, `wp_amelia_extras`, `wp_amelia_galleries`, `wp_amelia_locations`, `wp_amelia_locations_views`, `wp_amelia_notifications`, `wp_amelia_notifications_log`, `wp_amelia_notifications_sms_history`, `wp_amelia_notifications_to_entities`, `wp_amelia_packages`, `wp_amelia_packages_customers_to_services`, `wp_amelia_packages_services_to_locations`, `wp_amelia_packages_services_to_providers`, `wp_amelia_packages_to_customers`, `wp_amelia_packages_to_services`, `wp_amelia_payments`, `wp_amelia_providers_to_daysoff`, `wp_amelia_providers_to_google_calendar`, `wp_amelia_providers_to_locations`, `wp_amelia_providers_to_outlook_calendar`, `wp_amelia_providers_to_periods`, `wp_amelia_providers_to_periods_location`, `wp_amelia_providers_to_periods_services`, `wp_amelia_providers_to_services`, `wp_amelia_providers_to_specialdays`, `wp_amelia_providers_to_specialdays_periods`, `wp_amelia_providers_to_specialdays_periods_location`, `wp_amelia_providers_to_specialdays_periods_services`, `wp_amelia_providers_to_timeouts`, `wp_amelia_providers_to_weekdays`, `wp_amelia_providers_views`, `wp_amelia_resources`, `wp_amelia_resources_to_entities`, `wp_amelia_services`, `wp_amelia_services_views`, `wp_amelia_taxes`, `wp_amelia_taxes_to_entities`, `wp_amelia_users`
 
-The **ROVLEX Amelia Bridge v1.0.1** plugin synchronizes data between Listeo listings and Amelia locations:
-- Each listing gets an `amelia_location_id` meta field
-- Sync timestamp is tracked via `rovlex_last_sync`
-- Booking settings (opens/closes) are managed per listing
+### 7.2 Amelia Categories
+
+| ID | Name | Status  |
+|----|------|---------|
+| 1  | Hair | visible |
+
+### 7.3 Amelia Services (9 services)
+
+| ID | Name               | Price | Duration | Category |
+|----|--------------------|-------|----------|----------|
+| 1  | Стрижка женская    | 100   | 60 min   | Hair     |
+| 2  | Стрижка мужская    | 150   | 90 min   | Hair     |
+| 3  | Стрижка детская    | 120   | 60 min   | Hair     |
+| 4  | Стрижка женская    | 150   | 60 min   | Hair     |
+| 5  | Стрижка            | 130   | 60 min   | Hair     |
+| 6  | Стрижка 3          | 333   | 60 min   | Hair     |
+| 7  | ывсывс (test)      | 23    | 60 min   | Hair     |
+| 8  | Sthdbc (test)      | 100   | 60 min   | Hair     |
+| 9  | Волосы             | 120   | 60 min   | Hair     |
+
+### 7.4 Amelia Employees (13 providers)
+
+| ID | Name              | Email                    | Status  |
+|----|-------------------|--------------------------|---------|
+| 1  | Dima First        | wsc8eq@gmail.com         | visible |
+| 3  | Маша Иванова      | mashs@ivan.com           | visible |
+| 4  | Тина Massy        | tijij@iuehdfijer.com     | visible |
+| 5  | Вася Иванов       | dd@dfsdfsd.com           | visible |
+| 6  | Anna Travv        | erferf@erfre.com         | visible |
+| 7  | qwedwe (test)     | efrf@deferf.com          | visible |
+| 8  | Имя2 Фамилия2     | bebos@mybebo.fr          | visible |
+| 9  | 99staff Last       | 99diroco@diroco.com      | visible |
+| 10 | 00staff last       | 00diroco@diroco.com      | visible |
+| 11 | 00ыефаа last       | 00dirocoo@diroco.com     | visible |
+| 12 | w100 last          | u7diroco@diroco.com      | visible |
+| 13 | s011 last          | 011diroco@diroco.com     | visible |
+
+**Customers:** 1 total
+
+### 7.5 Amelia Locations (37 locations)
+
+| ID | Name           | Address                                                    |
+|----|----------------|------------------------------------------------------------|
+| 1  | Test Location  | 60 Av. des Champs-Elysees, 75008 Paris, France             |
+| 2  | Локация 2      | Esplanade Valery Giscard d'Estaing, 75007 Paris, France    |
+| 3  | Saloon2        | Quartier des Champs-Elysees, 8th Arr., Paris               |
+| 4  | saloon3        | (no address)                                               |
+| 5  | saloon4        | 3rd Arrondissement, Paris                                  |
+| 6  | saloon5        | (no address)                                               |
+| 7  | saloon6        | (no address)                                               |
+| 8  | saloon 7       | (no address)                                               |
+| 9–21 | Test entries (23, 232, 444, 4444, etc.) | (no address)                        |
+| 22 | saloon44       | (no address)                                               |
+| 23 | saloon55       | Val-de-Marne, Ile-de-France, France                        |
+| 24 | saloon66       | Hauts-de-Seine, Ile-de-France, France                      |
+| 25 | saloon77       | Hauts-de-Seine, Ile-de-France, France                      |
+| 26 | saloon88       | Hauts-de-Seine, Ile-de-France, France                      |
+| 27 | saloon99       | Hauts-de-Seine, Ile-de-France, France                      |
+| 28 | saloon00       | Val-de-Marne, Ile-de-France, France                        |
+| 29 | saloon11       | Val-de-Marne, Ile-de-France, France                        |
+| 30 | saloon011      | Val-de-Marne, Ile-de-France, France                        |
+| 31 | Saloon21       | (no address)                                               |
+| 32 | saloon22       | (no address)                                               |
+| 33 | r1             | Val-de-Marne, Ile-de-France, France                        |
+| 34–37 | s1, s2, s3, s3 | (no address)                                          |
+
+### 7.6 Listeo–Amelia Bridge Mapping (50 records)
+
+Each Listeo listing is linked to an Amelia location via `_amelia_location_id` meta:
+
+| Listing Post ID | Amelia Location ID | Last Sync              |
+|-----------------|--------------------|------------------------|
+| 496             | 37                 | 2026-02-17 13:45:43    |
+| 495             | 36                 | 2026-02-17 13:45:43    |
+| 494             | 35                 | 2026-02-17 13:45:43    |
+| 493             | 34                 | 2026-02-17 13:45:43    |
+| 491             | 33                 | 2026-02-17 13:45:43    |
+| 488             | 30                 | 2026-02-17 13:45:42    |
+| 485             | 29                 | 2026-02-17 13:45:42    |
+| 482             | 28                 | 2026-02-17 13:45:42    |
+| 478             | 27                 | 2026-02-17 13:45:42    |
+| 475             | 26                 | 2026-02-17 13:45:42    |
+| 472             | 25                 | 2026-02-17 13:45:42    |
+| 470             | 24                 | 2026-02-17 13:45:42    |
+| 467             | 23                 | 2026-02-17 13:45:42    |
+| 458             | 22                 | 2026-02-17 13:45:42    |
+| 402             | 21                 | 2026-02-17 13:45:42    |
+| 401             | 20                 | 2026-02-17 13:45:42    |
+| 399             | 19                 | 2026-02-17 13:45:42    |
+| 398             | 18                 | 2026-02-17 13:45:42    |
+| 397             | 17                 | 2026-02-17 13:45:42    |
+| 396             | 16                 | 2026-02-17 13:45:42    |
+| 395             | 15                 | 2026-02-17 13:45:42    |
+| 394             | 14                 | 2026-02-17 13:45:42    |
+| 393             | 13                 | 2026-02-17 13:45:42    |
+
+**All sync timestamps are from 2026-02-17** — Bridge is actively syncing.
 
 ---
 
@@ -240,9 +326,13 @@ Top regions: New York (10 listings), Los Angeles (1), plus US states/cities.
 
 ## 13. Notes & Observations
 
-- **Amelia API** returns empty responses publicly (likely requires WP nonce for authenticated calls). Data access confirmed only through Listeo bridge metadata.
-- **Bookly plugins** are installed but **inactive** — appears to be legacy or being evaluated as alternative to Amelia.
-- **Most listings are test data** — only "saloon" entries are real. Recommend cleanup before launch.
-- **Only 3 users** in the system — platform is in early development/testing phase.
-- **Regions** are US-centric but timezone is Europe/Paris — may need alignment.
+- **Amelia API** (admin-ajax.php) returns 404 for REST calls via Cloudflare — data was extracted via temporary DB export plugin.
+- **Bookly plugins** are installed but **inactive** — legacy/evaluation, can be safely removed.
+- **Most listings & locations are test data** — IDs 9-21 in Amelia and many listings have garbage names (numbers, random chars). Recommend cleanup before launch.
+- **Only 3 WP users, 13 Amelia employees** — platform is in early development/testing phase.
+- **All locations are in Paris/Ile-de-France area** — confirms target market is France, aligned with Europe/Paris timezone.
+- **Regions taxonomy is US-centric** (New York, LA, etc.) — needs to be replaced with French cities/regions.
 - **AI Chat & Search plugin** (v1.8.6) is active — provides RAG-based chat and hybrid search for listings.
+- **Bridge sync is working** — all 23+ listings synced on 2026-02-17, 1:1 mapping between Listeo listings and Amelia locations.
+- **Services are all in "Hair" category** — need more categories (Nails, Makeup, Skincare etc.) to match Listeo categories.
+- **Duplicate services** — "Стрижка женская" appears twice (ID:1 price=100, ID:4 price=150). Needs dedup.
