@@ -1,599 +1,796 @@
-# ROVLEX — План интеграции Listeo + Amelia
+# ROVLEX — План с нуля: Чистый WordPress + Listeo + Amelia
 
-**Дата:** 16 февраля 2026
-**Цель:** Объединить работу трёх разработчиков в единую рабочую систему
+**Дата:** 17 февраля 2026
+**Цель:** Развернуть чистую систему с нуля и написать оба кастомных плагина
 
 ---
 
 ## Бизнес-цель
 
-Маркетплейс салонов красоты, где:
+Маркетплейс салонов красоты (позже — handyman), где:
 
-1. **Владелец салона** регистрируется, создаёт листинг (описание, фото, адрес) → получает публичную ссылку
+1. **Владелец салона** регистрируется → создаёт листинг (описание, фото, адрес) → получает публичную страницу салона
 2. **Владелец** через админ-портал добавляет мастеров и услуги (с ценой и длительностью)
-3. **Клиент** находит салон на карте → переходит по ссылке → видит мастеров и услуги → бронирует
+3. **Клиент** находит салон на карте → переходит → видит мастеров и услуги → бронирует
 
 ---
 
-## Текущее состояние
-
-### Что есть
-
-| Компонент | Где | Статус | Ветка/Сервер |
-|---|---|---|---|
-| **rovlex-amelia-bridge** (мост Listeo↔Amelia) | Репозиторий + сервер (stub-файлы) | Код написан, не задеплоен полностью | `claude/read-integration-plan-t56To` |
-| **rovlex-admin-portal** v2.1 (iframe-версия) | Только сервер `test_rovlex__usr65` | Частично работает, iframe показывает не ту панель | Разработчик 2 |
-| **rovlex-admin-portal** v3 (модульная версия) | Только сервер `test_rovlex__usr39` | Архитектура готова, не протестирована | `claude/epic-dhawan` |
-| Документация | Репозиторий | Есть во всех ветках | Все ветки |
-
-### Два разных сервера
-
-- **test_rovlex__usr65** — сервер Разработчика 2 (iframe-подход)
-- **test_rovlex__usr39** — сервер Разработчика 3 (модульный подход)
-
-### Ключевые проблемы
-
-1. **Код не в репозитории.** PHP-код плагинов живёт только на серверах, не закоммичен.
-2. **Два параллельных плагина `rovlex-admin-portal`** — конфликтующие версии (iframe vs модульная).
-3. **Мост `rovlex-amelia-bridge` не задеплоен** — на сервере stub-файлы вместо реального кода.
-4. **Хеширование паролей сломано** — Amelia ожидает `$2y$10$...`, WordPress создаёт `$wp$2y$10$...`.
-5. **Счётчики в Amelia не фильтруются** — `totalCount` показывает общие числа, а не per-owner.
-
----
-
-## Архитектура целевой системы
-
-### Два плагина
+## Целевая архитектура
 
 ```
-┌──────────────────────────────────────────┐
-│           WordPress + Listeo             │
-│                                          │
-│  ┌────────────────────┐  ┌────────────┐  │
-│  │ rovlex-amelia-bridge│  │rovlex-admin│  │
-│  │                    │  │  -portal   │  │
-│  │ • Листинг→Локация  │  │ • Роли     │  │
-│  │ • Крон-синхр.      │  │ • Меню     │  │
-│  │ • Book Now кнопка  │  │ • Изоляция │  │
-│  │ • Staff/Services   │  │ • Логин    │  │
-│  │   на листинге      │  │ • Регистр. │  │
-│  └────────┬───────────┘  └──────┬─────┘  │
-│           │                     │        │
-│           ▼                     ▼        │
-│  ┌─────────────────────────────────────┐ │
-│  │         Amelia Booking Plugin       │ │
-│  │  Locations │ Employees │ Services   │ │
-│  │  Appointments │ Payments │ Customers│ │
-│  └─────────────────────────────────────┘ │
-└──────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│              WordPress + Listeo Theme             │
+│                                                   │
+│  ┌─────────────────────┐  ┌────────────────────┐  │
+│  │ rovlex-amelia-bridge │  │ rovlex-admin-portal│  │
+│  │   (Кастомный #1)    │  │   (Кастомный #2)   │  │
+│  │                     │  │                    │  │
+│  │ • Листинг→Локация   │  │ • Роль rovlex_owner│  │
+│  │ • Крон-синхронизация │  │ • Кастомное меню   │  │
+│  │ • Book Now кнопка   │  │ • Изоляция данных  │  │
+│  │ • Staff/Services    │  │ • Логин/Регистрация│  │
+│  │   на листинге       │  │ • Скрытие wp-admin │  │
+│  └─────────┬───────────┘  └──────────┬─────────┘  │
+│            │                         │             │
+│            ▼                         ▼             │
+│  ┌───────────────────────────────────────────────┐ │
+│  │           Amelia Booking Plugin (Pro)          │ │
+│  │  Locations │ Employees │ Services │ Bookings  │ │
+│  └───────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────┘
 ```
 
-### Распределение ответственности
+### Два кастомных плагина
 
 | Плагин | Отвечает за |
 |---|---|
-| **rovlex-amelia-bridge** | Связь Listeo ↔ Amelia: автосоздание локации, синхронизация staff/services на листинг, кнопка Book Now, отображение на карточке |
-| **rovlex-admin-portal** | Портал владельца: роли, кастомное меню, изоляция данных, логин, регистрация, скрытие wp-admin |
-
-### Путь владельца салона (Owner Journey)
-
-```
-1. Регистрация
-   └─ /register/ → создаётся WP-пользователь (роль: rovlex_owner + wpamelia-manager)
-
-2. Создание листинга
-   └─ Listeo frontend submission → POST listing
-      └─ [HOOK: save_post_listing] → rovlex-amelia-bridge автоматически:
-         ├─ Создаёт Amelia Location (название, адрес, телефон из листинга)
-         ├─ Сохраняет маппинг в wp_rovlex_amelia_map
-         ├─ Сохраняет _amelia_location_id в post_meta листинга
-         └─ Сохраняет rovlex_location_id в usermeta владельца
-
-3. Настройка салона (через админ-портал)
-   └─ /wp-admin/ → rovlex-admin-portal:
-      ├─ Кастомное меню (Dashboard, Calendar, Employees, Services, ...)
-      ├─ Стандартные страницы Amelia (без iframe!)
-      ├─ Изоляция: видит только свою локацию
-      └─ Добавляет мастеров, услуги (цена, длительность)
-
-4. Синхронизация
-   └─ [CRON: каждые 15 мин] → rovlex-amelia-bridge:
-      ├─ Читает мастеров из Amelia для этой локации
-      ├─ Читает услуги из Amelia для этой локации
-      └─ Обновляет HTML в post_meta листинга (_rovlex_staff_html, _rovlex_services_html)
-```
-
-### Путь клиента (Customer Journey)
-
-```
-1. Поиск
-   └─ Listeo каталог / карта → видит салоны с фото и описанием
-
-2. Просмотр салона
-   └─ Клик на листинг → страница салона:
-      ├─ Описание, фото, адрес, карта (Listeo)
-      ├─ Мастера (карточки с фото и именами) — из post_meta
-      ├─ Услуги (название, длительность, цена) — из post_meta
-      └─ Кнопка "Забронировать" → /book/?location=ID
-
-3. Бронирование
-   └─ /book/?location=ID → [ameliabooking location="ID"]
-      └─ Amelia показывает форму бронирования только для этого салона
-```
+| **rovlex-amelia-bridge** | Мост Listeo ↔ Amelia: автосоздание локации при публикации листинга, синхронизация мастеров/услуг на листинг (крон), кнопка "Забронировать", отображение на карточке |
+| **rovlex-admin-portal** | Портал владельца: кастомная роль, меню, изоляция данных (видит только своё), кастомный логин/регистрация, скрытие стандартного wp-admin |
 
 ---
 
-## План действий — 7 фаз
+## Фаза 0: Подготовка сервера
 
-### Фаза 0: Перенос кода в репозиторий
+### 0.1. Требования к серверу
 
-**Проблема:** PHP-код плагинов существует только на серверах, не в Git.
+- **ОС:** Ubuntu 22.04 LTS
+- **Web-сервер:** Nginx или Apache
+- **PHP:** 8.0+ (рекомендуется 8.1)
+- **MySQL:** 8.0+ или MariaDB 10.6+
+- **RAM:** минимум 2 GB (рекомендуется 4 GB)
+- **Диск:** минимум 20 GB SSD
+- **SSL:** Let's Encrypt (обязателен для Stripe)
 
-**Действия:**
+### 0.2. Установка стека
 
-1. **Скачать `rovlex-admin-portal`** с сервера `test_rovlex__usr39` (модульная версия Разработчика 3)
-   - Файлы из `/var/www/test_rovlex__usr39/data/www/test.rovlex.com/wp-content/plugins/rovlex-admin-portal/`
-   - Все 15 файлов (PHP, CSS, JS, шаблоны, изображения)
+```bash
+# Обновление системы
+apt update && apt upgrade -y
 
-2. **Скачать `rovlex-amelia-bridge`** — код уже в ветке `claude/read-integration-plan-t56To`
-   - Файлы: `rovlex-amelia-bridge.php`, `includes/`, `assets/`, `listeo-integration.php`
+# Установка Nginx + PHP + MySQL
+apt install nginx mysql-server php8.1 php8.1-fpm php8.1-mysql \
+  php8.1-curl php8.1-gd php8.1-mbstring php8.1-xml php8.1-zip \
+  php8.1-intl php8.1-imagick -y
 
-3. **Создать единую ветку** для интеграции (например `integration/listeo-amelia`)
+# SSL
+apt install certbot python3-certbot-nginx -y
+certbot --nginx -d test.rovlex.com
+```
 
-4. **Структура репозитория:**
-   ```
-   rovlex/
-   ├── plugins/
-   │   ├── rovlex-admin-portal/
-   │   │   ├── rovlex-admin-portal.php
-   │   │   ├── includes/
-   │   │   │   ├── class-roles.php
-   │   │   │   ├── class-admin-cleanup.php
-   │   │   │   ├── class-menu.php
-   │   │   │   ├── class-redirects.php
-   │   │   │   ├── class-login.php
-   │   │   │   ├── class-registration.php
-   │   │   │   └── class-data-isolation.php
-   │   │   ├── templates/
-   │   │   │   └── registration.php
-   │   │   └── assets/
-   │   │       ├── css/
-   │   │       ├── js/
-   │   │       └── img/
-   │   │
-   │   └── rovlex-amelia-bridge/
-   │       ├── rovlex-amelia-bridge.php
-   │       ├── listeo-integration.php
-   │       ├── includes/
-   │       │   ├── class-location-sync.php
-   │       │   ├── class-admin-redirect.php
-   │       │   ├── class-data-sync.php
-   │       │   └── class-listing-display.php
-   │       ├── assets/
-   │       │   └── styles.css
-   │       └── tests/
-   │           ├── test-integration.php
-   │           └── wp-cli-test.php
-   │
-   └── docs/
-       ├── PROJECT_SUMMARY.md
-       ├── INTEGRATION_PLAN.md
-       └── ...
-   ```
+### 0.3. Настройка MySQL
 
-**Зависимость:** Нужен SSH-доступ к серверу `test_rovlex__usr39` для скачивания файлов.
+```sql
+CREATE DATABASE rovlex_wp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'rovlex_user'@'localhost' IDENTIFIED BY '<STRONG_PASSWORD>';
+GRANT ALL PRIVILEGES ON rovlex_wp.* TO 'rovlex_user'@'localhost';
+FLUSH PRIVILEGES;
+```
 
-**Результат:** Весь код в одном репозитории, версионирован.
+### 0.4. Настройка Nginx
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name test.rovlex.com;
+
+    root /var/www/rovlex/public_html;
+    index index.php;
+
+    ssl_certificate /etc/letsencrypt/live/test.rovlex.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/test.rovlex.com/privkey.pem;
+
+    client_max_body_size 64M;
+
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/run/php/php8.1-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+
+**Результат:** Сервер готов к установке WordPress.
 
 ---
 
-### Фаза 1: Выбор базовой версии `rovlex-admin-portal`
+## Фаза 1: Установка WordPress + темы + плагинов
 
-**Проблема:** Существуют 2 конфликтующие версии плагина.
+### 1.1. Установка WordPress
 
-| | Разработчик 2 (iframe) | Разработчик 3 (модульная) |
+```bash
+cd /var/www/rovlex
+wget https://wordpress.org/latest.tar.gz
+tar xzf latest.tar.gz
+mv wordpress public_html
+chown -R www-data:www-data public_html
+```
+
+Или через WP-CLI:
+```bash
+wp core download --path=/var/www/rovlex/public_html --locale=en_US
+wp core install --url=test.rovlex.com --title="ROVLEX" \
+  --admin_user=admin --admin_password=<PASSWORD> \
+  --admin_email=admin@rovlex.com
+```
+
+### 1.2. Настройка wp-config.php
+
+```php
+// Обязательные настройки
+define('WP_DEBUG', true);           // На время разработки
+define('WP_DEBUG_LOG', true);       // Логи в /wp-content/debug.log
+define('WP_DEBUG_DISPLAY', false);  // Не показывать ошибки на фронте
+define('DISALLOW_FILE_EDIT', true); // Запрет редактирования файлов из админки
+define('WP_MEMORY_LIMIT', '256M');
+
+// Для корректной работы крона
+define('DISABLE_WP_CRON', true);    // Используем системный cron
+```
+
+Системный cron:
+```bash
+echo "*/5 * * * * www-data php /var/www/rovlex/public_html/wp-cron.php" | crontab -
+```
+
+### 1.3. Установка Listeo (тема)
+
+1. Купить тему Listeo на ThemeForest (~$69)
+2. Загрузить через **Appearance → Themes → Upload Theme**
+3. Активировать Listeo
+4. Установить рекомендуемые плагины при активации:
+   - **Listeo Core** (обязательный companion plugin)
+   - **Listeo Companion** (дополнительные виджеты)
+   - **Elementor** (page builder)
+   - **Contact Form 7** (формы)
+
+### 1.4. Настройка Listeo
+
+```
+Appearance → Customize:
+  - Site Identity: логотип ROVLEX, favicon
+  - Colors: Primary #02AF08, Dark #111827
+  - Typography: Poppins (headings), Inter (body)
+
+Listeo → Settings:
+  - Listing Types: включить "Beauty Salon"
+  - Map Provider: Google Maps или OpenStreetMap
+  - Submission: включить frontend submission для owners
+  - Booking: отключить встроенное бронирование (используем Amelia)
+  - Currency: GBP (£)
+  - Search: включить поиск по карте
+```
+
+### 1.5. Установка Amelia (Pro)
+
+1. Купить Amelia Pro (~$80/год)
+2. Загрузить через **Plugins → Add New → Upload Plugin**
+3. Активировать
+4. Базовая настройка:
+
+```
+Amelia → Settings:
+  - General:
+    - Default Time Slot Step: 15 min
+    - Default Appointment Status: pending
+    - Use Service Duration for Time Slots: Yes
+  - Company:
+    - Name: ROVLEX
+    - Address: (оставить пустым — у каждого салона свой)
+    - Phone: (оставить пустым)
+  - Payments:
+    - On-site: включить
+    - Stripe: настроить позже (Фаза 6)
+  - Notifications:
+    - Email: включить
+    - SMS: отключить пока
+  - Roles:
+    - Allow managers to: View only assigned locations
+```
+
+### 1.6. Создание необходимых страниц
+
+| Страница | URL | Содержимое |
 |---|---|---|
-| Архитектура | Один файл, 427 строк | 7 классов, 15 файлов, 889 строк |
-| Подход к UI | iframe + публичная страница | Прямой доступ к Amelia через wp-admin |
-| Изоляция данных | Нет | Да (233 строки, 7 хуков Amelia) |
-| Роли | wpamelia-manager | rovlex_owner + wpamelia-manager (двойная) |
-| Меню | 10 кнопок + iframe | 9 пунктов + прямые ссылки на страницы Amelia |
-| Регистрация | Есть (с багом паролей) | Есть (отдельный класс) |
-| Логин | Кастомная форма | Кастомизированная WP-страница логина |
-| Мобильная версия | Нет | Да (tab-bar с 5 иконками) |
+| Booking | `/book/` | `[ameliabooking]` |
+| Registration | `/register/` | `[rovlex_registration]` (наш шорткод) |
+| Login | `/login/` | `[rovlex_login]` (наш шорткод) |
+| Dashboard | `/dashboard/` | Listeo dashboard (для owners) |
 
-**Решение:** Взять **модульную версию Разработчика 3** (`epic-dhawan`) как базу.
-
-**Обоснование:**
-- Модульная архитектура (легче поддерживать и расширять)
-- Изоляция данных уже реализована (ключевая фича)
-- Нет проблемы с iframe (использует прямые страницы Amelia в wp-admin)
-- Двойная роль (`rovlex_owner` + `wpamelia-manager`) обеспечивает совместимость с Amelia
-- Мобильная адаптация
-
-**Что взять от Разработчика 2:**
-- Ничего на уровне кода (подход с iframe отброшен)
-- Полезное знание: хеширование паролей Amelia (`password_hash()` vs `wp_hash_password()`)
-
-**Результат:** Определена базовая версия admin-portal.
+**Результат:** Чистый WordPress с Listeo + Amelia установлен и настроен.
 
 ---
 
-### Фаза 2: Исправление критических багов в `rovlex-admin-portal`
+## Фаза 2: Разработка плагина `rovlex-admin-portal`
 
-#### 2.1. Хеширование паролей при регистрации
-
-**Файл:** `includes/class-registration.php`
-
-**Проблема:** При регистрации пароль хешируется через `wp_hash_password()`, что создаёт формат `$wp$2y$10$...`. Amelia использует `password_verify()`, который ожидает стандартный bcrypt `$2y$10$...`.
-
-**Исправление:**
-```php
-// БЫЛО:
-$password_hash = wp_hash_password($password);
-
-// СТАЛО (для записи в wp_amelia_users):
-$amelia_password_hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 10]);
-
-// Для WordPress-пользователя оставить стандартный wp_hash_password()
-// Для Amelia-пользователя использовать password_hash()
-```
-
-**Важно:** WordPress-пользователь и Amelia-пользователь хешируют пароли по-разному. При регистрации нужно создавать обоих с правильными хешами.
-
-#### 2.2. Привязка location_id при регистрации
-
-**Проблема:** При регистрации владельца нужно автоматически привязать его к location.
-
-**Текущее поведение:** Форма регистрации имеет dropdown выбора локации, но связка с Listeo-листингом отсутствует.
-
-**Целевое поведение:**
-- Вариант A: Владелец сначала регистрируется, потом создаёт листинг → location_id назначается при создании листинга (мост `rovlex-amelia-bridge` делает это)
-- Вариант B: Владелец создаёт листинг через Listeo frontend → при этом автоматически создаётся WP-пользователь
-
-**Рекомендация:** Вариант A — разделить регистрацию и создание салона.
+### Структура файлов
 
 ```
-Регистрация → Логин → Создание листинга (Listeo) → Автосоздание локации (Bridge)
-                                                    → Автопривязка location_id к владельцу
+plugins/rovlex-admin-portal/
+├── rovlex-admin-portal.php          # Главный файл плагина
+├── includes/
+│   ├── class-roles.php              # Роль rovlex_owner
+│   ├── class-admin-cleanup.php      # Скрытие лишнего в wp-admin
+│   ├── class-menu.php               # Кастомное меню для owners
+│   ├── class-redirects.php          # Редиректы при логине
+│   ├── class-login.php              # Кастомная форма логина
+│   ├── class-registration.php       # Регистрация + Amelia user
+│   └── class-data-isolation.php     # Изоляция данных между owners
+├── templates/
+│   ├── login.php                    # Шаблон формы логина
+│   └── registration.php             # Шаблон формы регистрации
+└── assets/
+    ├── css/
+    │   ├── admin.css                # Стили админки для owners
+    │   └── auth.css                 # Стили форм логина/регистрации
+    ├── js/
+    │   ├── admin.js                 # JS для админки
+    │   └── auth.js                  # JS для форм (AJAX)
+    └── img/
+        └── logo.svg                 # Логотип для брендинга
 ```
 
-#### 2.3. Счётчики total на страницах списков
+### 2.1. Главный файл (`rovlex-admin-portal.php`)
 
-**Проблема:** На страницах Employees, Customers, Services счётчик `totalCount` формируется отдельным SQL-запросом в Amelia ПОСЛЕ применения фильтров изоляции, поэтому показывает общее число.
+Точка входа:
+- Plugin Name, Version, Dependencies
+- Проверка зависимости от Amelia
+- Автозагрузка классов из `includes/`
+- Хуки активации/деактивации
 
-**Варианты решения:**
-1. **JS-патч:** После загрузки страницы пересчитать видимые строки и обновить счётчик
-2. **CSS-скрытие:** Скрыть счётчик через CSS
-3. **Дополнительный хук Amelia:** Если Amelia предоставляет хук для `totalCount`
+### 2.2. Роли (`class-roles.php`)
 
-**Рекомендация:** Начать с варианта 2 (CSS) как быстрое решение, потом реализовать вариант 1 (JS).
+```
+При активации плагина:
+  → Создать роль "rovlex_owner" с capabilities:
+    - read
+    - edit_posts (для Listeo frontend submission)
+    - upload_files (для фото)
+    - wpamelia-manager capabilities (для доступа к Amelia)
 
-```css
-/* Временное решение: скрыть счётчики */
-.am-section-total-count { display: none !important; }
+При регистрации нового владельца:
+  → Назначить роли: rovlex_owner + wpamelia-manager
 ```
 
-**Результат:** Критические баги исправлены.
+### 2.3. Кастомное меню (`class-menu.php`)
+
+Для пользователей с ролью `rovlex_owner` в wp-admin показывать только:
+
+| Пункт меню | URL в wp-admin | Описание |
+|---|---|---|
+| Dashboard | `admin.php?page=wpamelia-dashboard` | Сводка Amelia |
+| Calendar | `admin.php?page=wpamelia-calendar` | Расписание |
+| Appointments | `admin.php?page=wpamelia-appointments` | Записи |
+| Employees | `admin.php?page=wpamelia-employees` | Мастера |
+| Services | `admin.php?page=wpamelia-services` | Услуги |
+| Customers | `admin.php?page=wpamelia-customers` | Клиенты |
+| Finance | `admin.php?page=wpamelia-finance` | Финансы |
+| My Listing | ссылка на Listeo frontend edit | Мой листинг |
+| Settings | кастомная страница | Настройки профиля |
+
+Все остальные пункты wp-admin (Posts, Pages, Comments, Tools, Settings) — скрыть.
+
+### 2.4. Изоляция данных (`class-data-isolation.php`)
+
+**Ключевая фича.** Каждый owner видит только данные своей локации.
+
+Механизм:
+```
+1. При загрузке wp-admin проверить роль пользователя
+2. Если rovlex_owner → получить rovlex_location_id из usermeta
+3. Подключить фильтры Amelia:
+   - amelia_get_employees_filter → WHERE location_id = X
+   - amelia_get_services_filter → WHERE через providers_to_services JOIN
+   - amelia_get_appointments_filter → WHERE locationId = X
+   - amelia_get_customers_filter → WHERE через appointments JOIN
+   - amelia_get_payments_filter → WHERE через appointments JOIN
+4. Если location_id ещё не привязан → показать сообщение "Создайте листинг"
+```
+
+**Важно:** Amelia Pro предоставляет хуки фильтрации. Если хуки недоступны — использовать JavaScript-фильтрацию как fallback.
+
+### 2.5. Логин (`class-login.php`)
+
+- Шорткод `[rovlex_login]` → кастомная форма
+- AJAX-обработчик `wp_ajax_nopriv_rovlex_login`
+- При логине: проверить роль → редирект:
+  - `rovlex_owner` → `/wp-admin/admin.php?page=wpamelia-dashboard`
+  - `administrator` → `/wp-admin/`
+  - все остальные → `/`
+
+### 2.6. Регистрация (`class-registration.php`)
+
+- Шорткод `[rovlex_registration]` → кастомная форма
+- AJAX-обработчик `wp_ajax_nopriv_rovlex_register`
+- При регистрации:
+
+```
+1. Валидация (email, пароль, имя)
+2. Создать WP-пользователя:
+   → wp_insert_user() с ролью rovlex_owner
+   → Добавить роль wpamelia-manager
+3. Создать Amelia-пользователя:
+   → INSERT INTO wp_amelia_users (type='manager', externalId=WP_USER_ID)
+   → Пароль: password_hash($password, PASSWORD_BCRYPT, ['cost' => 10])
+   → (НЕ wp_hash_password — Amelia использует password_verify!)
+4. Автологин → редирект в wp-admin
+```
+
+### 2.7. Скрытие стандартного wp-admin (`class-admin-cleanup.php`)
+
+Для роли `rovlex_owner`:
+- Скрыть admin bar на фронтенде
+- Убрать "Welcome" dashboard widget
+- Убрать WordPress news, quick draft и прочие стандартные виджеты
+- Добавить брендинг (логотип ROVLEX вместо WordPress)
+- Скрыть footer credits
+
+**Результат:** Владельцы видят чистый, брендированный интерфейс.
 
 ---
 
-### Фаза 3: Интеграция `rovlex-amelia-bridge` с `rovlex-admin-portal`
+## Фаза 3: Разработка плагина `rovlex-amelia-bridge`
 
-**Цель:** Связать два плагина, чтобы при создании листинга в Listeo автоматически создавалась Amelia-локация и привязывалась к владельцу.
+### Структура файлов
 
-#### 3.1. Автопривязка location_id к владельцу
-
-**Текущее поведение bridge:** При `save_post_listing` создаёт Amelia-локацию и сохраняет маппинг в `wp_rovlex_amelia_map` + `_amelia_location_id` в post_meta.
-
-**Чего не хватает:** Не записывает `rovlex_location_id` в `usermeta` автора листинга.
-
-**Добавить в `class-location-sync.php`:**
-```php
-// После создания Amelia-локации:
-$author_id = get_post_field('post_author', $listing_id);
-add_user_meta($author_id, 'rovlex_location_id', $amelia_location_id);
+```
+plugins/rovlex-amelia-bridge/
+├── rovlex-amelia-bridge.php         # Главный файл плагина
+├── includes/
+│   ├── class-location-sync.php      # Листинг → Amelia Location
+│   ├── class-data-sync.php          # Крон: мастера/услуги → листинг
+│   ├── class-listing-display.php    # Отображение на листинге
+│   └── class-booking-page.php       # Страница бронирования
+├── assets/
+│   ├── css/
+│   │   └── listing-display.css      # Стили карточек мастеров/услуг
+│   └── js/
+│       └── booking.js               # JS для кнопки бронирования
+└── templates/
+    ├── staff-card.php               # Шаблон карточки мастера
+    ├── service-row.php              # Шаблон строки услуги
+    └── booking-button.php           # Шаблон кнопки "Забронировать"
 ```
 
-Это свяжет мост (`bridge`) с изоляцией (`admin-portal`). Когда владелец зайдёт в админку, `class-data-isolation.php` прочитает его `rovlex_location_id` и отфильтрует данные.
+### 3.1. Автосоздание локации (`class-location-sync.php`)
 
-#### 3.2. Создание Amelia-пользователя при регистрации
+Хуки:
+- `save_post_listing` (при сохранении листинга в Listeo)
+- `listeo_after_submit_listing` (при frontend submission)
 
-**Текущее поведение portal:** `class-registration.php` создаёт WP-пользователя с ролями.
+Логика:
+```
+1. Листинг опубликован (status = publish)
+2. Проверить: есть ли уже _amelia_location_id в post_meta?
+   → Если да — обновить существующую локацию
+   → Если нет — создать новую
 
-**Чего не хватает:** Не создаёт запись в `wp_amelia_users`.
+3. Создание Amelia Location:
+   INSERT INTO wp_amelia_locations SET
+     status = 'visible',
+     name = post_title,
+     address = _listing_address (meta),
+     phone = _listing_phone (meta),
+     latitude = _listing_lat (meta),
+     longitude = _listing_lng (meta),
+     description = post_excerpt
 
-**Добавить:**
-```php
-// После создания WP-пользователя:
-global $wpdb;
-$wpdb->insert(
-    $wpdb->prefix . 'amelia_users',
-    array(
-        'status'    => 'visible',
-        'type'      => 'manager',
-        'firstName' => $first_name,
-        'lastName'  => $last_name,
-        'email'     => $email,
-        'password'  => password_hash($password, PASSWORD_BCRYPT, ['cost' => 10]),
-        'externalId' => $wp_user_id,  // связь с WP-пользователем
-    ),
-    array('%s', '%s', '%s', '%s', '%s', '%s', '%d')
+4. Сохранить маппинг:
+   → update_post_meta($listing_id, '_amelia_location_id', $location_id)
+   → update_user_meta($author_id, 'rovlex_location_id', $location_id)
+   → INSERT INTO wp_rovlex_amelia_map (listing_id, amelia_location_id, wp_user_id)
+```
+
+Таблица маппинга (создаётся при активации плагина):
+```sql
+CREATE TABLE wp_rovlex_amelia_map (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  listing_id BIGINT UNSIGNED NOT NULL,
+  amelia_location_id BIGINT UNSIGNED NOT NULL,
+  wp_user_id BIGINT UNSIGNED NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY listing_location (listing_id, amelia_location_id)
 );
 ```
 
-#### 3.3. Проверка зависимостей между плагинами
+### 3.2. Крон-синхронизация (`class-data-sync.php`)
 
-**Порядок загрузки:**
-1. Amelia (должна быть активна)
-2. rovlex-admin-portal (зависит от Amelia)
-3. rovlex-amelia-bridge (зависит от Amelia + Listeo)
+Каждые 15 минут:
+```
+1. Получить все маппинги из wp_rovlex_amelia_map
+2. Для каждого маппинга:
+   a. Получить мастеров из wp_amelia_users
+      WHERE type='employee'
+      AND id IN (SELECT providerId FROM wp_amelia_providers_to_locations
+                 WHERE locationId = X)
 
-**Добавить проверку:**
-```php
-// В rovlex-admin-portal.php:
-if (!class_exists('AmeliaBooking\Plugin')) {
-    add_action('admin_notices', function() {
-        echo '<div class="notice notice-error"><p>ROVLEX Admin Portal requires Amelia plugin.</p></div>';
-    });
-    return;
-}
+   b. Получить услуги:
+      SELECT DISTINCT s.* FROM wp_amelia_services s
+      JOIN wp_amelia_providers_to_services ps ON s.id = ps.serviceId
+      JOIN wp_amelia_providers_to_locations pl ON ps.userId = pl.userId
+      WHERE pl.locationId = X
 
-// В rovlex-amelia-bridge.php (уже есть):
-// Аналогичная проверка для Amelia + Listeo
+   c. Сгенерировать HTML:
+      → _rovlex_staff_html: карточки мастеров (фото, имя, должность)
+      → _rovlex_services_html: таблица услуг (название, длительность, цена)
+      → _rovlex_staff_count: число мастеров
+      → _rovlex_services_count: число услуг
+
+   d. Обновить post_meta листинга
 ```
 
-**Результат:** Два плагина работают как единая система.
+### 3.3. Отображение на листинге (`class-listing-display.php`)
+
+Интеграция с Listeo через хуки:
+
+```
+1. Таб "Staff & Services" на странице листинга:
+   → listeo_listing_data_tabs — добавить таб
+   → listeo_listing_data_panels — вывести содержимое
+
+2. Карточки мастеров:
+   → Фото (круглое), Имя, Должность/Специализация
+
+3. Список услуг:
+   → Название | Длительность | Цена
+
+4. Кнопка "Забронировать":
+   → listeo_single_listing_after_content
+   → listeo_sidebar_listing_actions
+   → Ссылка: /book/?location={amelia_location_id}
+```
+
+### 3.4. Страница бронирования (`class-booking-page.php`)
+
+- На странице `/book/` отображается шорткод `[ameliabooking]`
+- Если передан `?location=ID` → автоматически фильтровать по локации
+- Шорткод: `[ameliabooking location="{ID}"]`
+
+**Результат:** Два плагина написаны, мост между Listeo и Amelia работает.
 
 ---
 
-### Фаза 4: Доработка отображения на листинге
+## Фаза 4: Интеграция и связка плагинов
 
-**Цель:** На странице листинга Listeo показать мастеров и услуги из Amelia.
+### 4.1. Путь владельца (Owner Journey)
 
-#### 4.1. Текущее состояние (`rovlex-amelia-bridge`)
+```
+1. /register/ → Регистрация
+   └─ WP user (rovlex_owner) + Amelia user (manager) созданы
 
-Крон-синхронизация (`class-data-sync.php`) каждые 15 минут:
-- Читает мастеров из `wp_amelia_users` для локации
-- Читает услуги из `wp_amelia_services` через цепочку `providers_to_services` → `providers_to_locations`
-- Генерирует HTML и сохраняет в `post_meta`:
-  - `_rovlex_staff_html` — карточки мастеров (фото, имя, описание)
-  - `_rovlex_services_html` — список услуг (название, длительность, цена)
-  - `_rovlex_staff_count`, `_rovlex_services_count`
+2. /wp-admin/ → Логин владельца
+   └─ Кастомное меню, брендинг ROVLEX
 
-#### 4.2. Отображение на странице листинга
+3. Listeo Frontend → Создание листинга
+   └─ save_post_listing HOOK:
+      ├─ Amelia Location создана автоматически
+      ├─ location_id привязан к owner в usermeta
+      └─ Маппинг записан в wp_rovlex_amelia_map
 
-`listeo-integration.php` добавляет таб "Staff & Services" на страницу листинга через хуки:
-- `listeo_listing_data_tabs` — добавляет таб
-- `listeo_listing_data_panels` — выводит содержимое из `post_meta`
+4. /wp-admin/ → Employees → Add New
+   └─ Owner добавляет мастеров (видит только свою локацию)
 
-**Нужно проверить:**
-- Корректность Listeo-хуков на текущей версии Listeo
-- Адаптивность HTML-карточек мастеров на мобильных
-- Наличие fallback если данных ещё нет (листинг только создан, крон ещё не прошёл)
+5. /wp-admin/ → Services → Add New
+   └─ Owner добавляет услуги
 
-#### 4.3. Кнопка "Забронировать"
+6. [CRON каждые 15 мин]
+   └─ Мастера и услуги синхронизированы на листинг
+```
 
-`class-listing-display.php` добавляет кнопку через:
-- `listeo_single_listing_after_content` — после контента листинга
-- `listeo_sidebar_listing_actions` — в сайдбаре
+### 4.2. Путь клиента (Customer Journey)
 
-Кнопка ведёт на `/book/?location=ID` → шорткод `[ameliabooking location="ID"]`.
+```
+1. Главная страница / Карта → Поиск салонов
 
-**Нужно проверить:**
-- Страница `/book/` создана
-- Amelia-шорткод корректно фильтрует по location
-- Мобильная версия формы бронирования
+2. Клик на салон → Страница листинга:
+   ├─ Описание, фото, адрес (Listeo)
+   ├─ Таб "Staff & Services":
+   │   ├─ Карточки мастеров
+   │   └─ Список услуг с ценами
+   └─ Кнопка "Забронировать"
 
-**Результат:** Клиент видит мастеров, услуги и может забронировать.
+3. /book/?location=ID → Форма бронирования Amelia:
+   └─ Выбор: мастер → услуга → дата/время → подтверждение
+```
+
+### 4.3. Проверка зависимостей
+
+Порядок загрузки:
+1. Amelia (должна быть активна)
+2. Listeo Core (должен быть активен)
+3. rovlex-admin-portal (зависит от Amelia)
+4. rovlex-amelia-bridge (зависит от Amelia + Listeo Core)
+
+Каждый плагин проверяет зависимости при активации:
+```php
+// В rovlex-admin-portal.php
+if (!class_exists('AmeliaBooking\Plugin')) {
+    deactivate_plugins(plugin_basename(__FILE__));
+    wp_die('ROVLEX Admin Portal requires Amelia plugin to be active.');
+}
+
+// В rovlex-amelia-bridge.php
+if (!class_exists('AmeliaBooking\Plugin') || !function_exists('listeo_core_init')) {
+    deactivate_plugins(plugin_basename(__FILE__));
+    wp_die('ROVLEX Amelia Bridge requires both Amelia and Listeo Core plugins.');
+}
+```
+
+**Результат:** Оба плагина работают как единая система.
 
 ---
 
-### Фаза 5: Тестирование сквозного сценария (End-to-End)
+## Фаза 5: Настройка контента и категорий
 
-#### 5.1. Тест-кейс: Регистрация и создание салона
+### 5.1. Категории листингов в Listeo
+
+```
+Beauty Salon (основная категория)
+├── Hair Salon
+├── Nail Salon
+├── Makeup Studio
+├── Skincare & Facial
+├── Massage & Body
+├── Barber Shop
+└── Multi-Service Salon
+```
+
+### 5.2. Категории услуг в Amelia
+
+```
+Hair Services
+├── Haircut (Women) — 45 min — £35+
+├── Haircut (Men) — 30 min — £20+
+├── Hair Coloring — 120 min — £80+
+├── Highlights — 90 min — £70+
+├── Blowout — 30 min — £25+
+└── Hair Treatment — 45 min — £40+
+
+Nail Services
+├── Manicure — 30 min — £20+
+├── Pedicure — 45 min — £25+
+├── Gel Nails — 60 min — £30+
+└── Nail Art — 30 min — £15+
+
+(и т.д. по категориям)
+```
+
+**Важно:** Категории услуг в Amelia создаёт каждый owner самостоятельно (но можно создать шаблонные для удобства).
+
+### 5.3. Тестовые данные
+
+Для тестирования создать:
+- 2-3 тестовых owner-а
+- 2-3 листинга с разными адресами
+- По 2-3 мастера и 3-5 услуг на каждый салон
+- Несколько тестовых бронирований
+
+**Результат:** Контент настроен, система готова к тестированию.
+
+---
+
+## Фаза 6: Тестирование (End-to-End)
+
+### 6.1. Тест: Регистрация владельца
 
 ```
 1. Открыть /register/
-2. Заполнить: имя, email, пароль
-3. → Создан WP-пользователь (rovlex_owner + wpamelia-manager)
-4. → Создан Amelia-пользователь (type: manager)
-5. Логин в /wp-admin/
-6. → Видим кастомное меню (Dashboard, Calendar, Employees, ...)
-7. → Стандартный WP-интерфейс скрыт
+2. Заполнить: имя, email, пароль, телефон
+3. Нажать "Register"
+4. ✓ WP user создан с ролями rovlex_owner + wpamelia-manager
+5. ✓ Amelia user создан (type: manager, externalId = WP user ID)
+6. ✓ Пароль в Amelia: bcrypt $2y$10$... (НЕ $wp$2y$10$...)
+7. ✓ Автоматический логин → редирект в /wp-admin/
+8. ✓ Кастомное меню (не стандартный wp-admin)
 ```
 
-**Ожидаемый результат:** Владелец видит чистый интерфейс с меню Rovlex.
-
-#### 5.2. Тест-кейс: Создание листинга
+### 6.2. Тест: Создание листинга
 
 ```
-1. Владелец создаёт листинг через Listeo frontend
-2. Заполняет: название салона, описание, адрес, фото, телефон
-3. Публикует листинг
-4. → [HOOK] rovlex-amelia-bridge создаёт Amelia Location
-5. → [HOOK] Маппинг сохранён в wp_rovlex_amelia_map
-6. → [HOOK] rovlex_location_id записан в usermeta владельца
-7. Владелец заходит в админку
-8. → Видит только свою локацию в Amelia
+1. Owner в Listeo dashboard → "Add Listing"
+2. Заполнить: название, описание, адрес, фото, телефон
+3. Опубликовать
+4. ✓ Amelia Location создана (название, адрес, координаты)
+5. ✓ _amelia_location_id записан в post_meta листинга
+6. ✓ rovlex_location_id записан в usermeta owner-а
+7. ✓ Маппинг в wp_rovlex_amelia_map
 ```
 
-**Ожидаемый результат:** Локация создана, привязана к владельцу.
-
-#### 5.3. Тест-кейс: Добавление мастеров и услуг
+### 6.3. Тест: Добавление мастеров и услуг
 
 ```
-1. Владелец в админке → Employees → Add New
-2. Создаёт мастера (имя, фото, описание)
-3. Привязывает мастера к своей локации
-4. → Services → Add New
-5. Создаёт услугу (название, цена, длительность)
-6. Привязывает услугу к мастеру
-7. Ждём 15 минут (или триггерим крон вручную)
-8. → На листинге появляются карточки мастеров и список услуг
+1. Owner в wp-admin → Employees → Add New
+2. Создать мастера (имя, фото, описание)
+3. Привязать к локации
+4. Owner → Services → Add New
+5. Создать услугу (название, цена £35, длительность 45 мин)
+6. Привязать к мастеру
+7. Запустить крон вручную (или подождать 15 мин)
+8. ✓ На листинге появились карточки мастеров
+9. ✓ На листинге появился список услуг с ценами
 ```
 
-**Ожидаемый результат:** Мастера и услуги отображаются на листинге.
-
-#### 5.4. Тест-кейс: Бронирование клиентом
+### 6.4. Тест: Бронирование клиентом
 
 ```
-1. Клиент находит салон на карте Listeo
-2. Переходит на страницу листинга
-3. Видит описание салона, мастеров, услуги
-4. Нажимает "Забронировать"
-5. → Переход на /book/?location=ID
-6. → Amelia показывает форму бронирования для этого салона
-7. Клиент выбирает мастера → услугу → дату/время
-8. Подтверждает бронирование
-9. → Запись появляется в Amelia (привязана к location)
-10. → Владелец видит запись в своей админке (изоляция работает)
+1. Клиент открывает страницу листинга
+2. Видит мастеров и услуги
+3. Нажимает "Забронировать"
+4. → /book/?location=ID
+5. Amelia форма: выбор мастера → услуги → даты → времени
+6. Подтверждение
+7. ✓ Запись создана в Amelia (привязана к location)
+8. ✓ Owner видит запись в своём календаре
 ```
 
-**Ожидаемый результат:** Полный цикл бронирования работает.
-
-#### 5.5. Тест-кейс: Изоляция данных
+### 6.5. Тест: Изоляция данных
 
 ```
-1. Создать 2-х владельцев (Owner A и Owner B)
-2. Каждый создаёт свой листинг → свою локацию
-3. Каждый добавляет своих мастеров и услуги
-4. Owner A в админке:
-   ├─ Видит только свою локацию ✓
-   ├─ Видит только своих мастеров ✓
-   ├─ Видит только свои услуги ✓
-   ├─ Видит только свои записи ✓
-   ├─ Видит только свои платежи ✓
-   └─ НЕ видит данные Owner B ✓
-5. Owner B аналогично
+1. Создать Owner A и Owner B
+2. Каждый создаёт листинг → свою локацию
+3. Каждый добавляет мастеров и услуги
+4. Owner A в wp-admin:
+   ✓ Видит только свою локацию
+   ✓ Видит только своих мастеров
+   ✓ Видит только свои услуги
+   ✓ Видит только свои записи
+   ✗ НЕ видит данные Owner B
+5. Owner B — аналогично
 ```
 
-**Ожидаемый результат:** Полная изоляция данных между владельцами.
-
-**Результат:** Все сценарии протестированы.
+**Результат:** Все сценарии протестированы и работают.
 
 ---
 
-### Фаза 6: Деплой на единый сервер
+## Фаза 7: Продакшн-подготовка
 
-#### 6.1. Выбор сервера
+### 7.1. Безопасность
 
-Сейчас есть два тестовых сервера:
-- `test_rovlex__usr65` — сервер Разработчика 2
-- `test_rovlex__usr39` — сервер Разработчика 3
+- [ ] `WP_DEBUG = false` в wp-config.php
+- [ ] Удалить debug.log
+- [ ] Проверить file permissions (644 файлы, 755 директории)
+- [ ] Убедиться что X-Frame-Options: SAMEORIGIN для wp-admin
+- [ ] Настроить CSP headers
+- [ ] Убедиться что SQL-запросы используют $wpdb->prepare()
+- [ ] Проверить nonce-верификацию во всех AJAX-обработчиках
+- [ ] Настроить fail2ban для защиты от brute force
+- [ ] Ограничить попытки логина (Limit Login Attempts plugin)
 
-**Рекомендация:** Использовать `test_rovlex__usr39` (на нём уже модульная версия admin-portal).
+### 7.2. Платежи (Stripe Connect)
 
-#### 6.2. Деплой `rovlex-amelia-bridge`
+```
+Amelia → Settings → Payments → Stripe:
+  - API Key: sk_live_...
+  - Public Key: pk_live_...
+  - Webhook: https://rovlex.com/wp-json/amelia/v1/stripe-webhook
 
-На сервере `test_rovlex__usr39` сейчас нет этого плагина. Нужно:
-
-1. Загрузить файлы плагина в `/wp-content/plugins/rovlex-amelia-bridge/`
-2. Активировать плагин (создаст таблицу `wp_rovlex_amelia_map`)
-3. Убедиться что страница `/book/` создана
-
-**Метод деплоя:**
-- Если есть SSH: `scp -r` или `git clone` + symlink
-- Если нет SSH: ISPmanager File Manager или FTP
-- Альтернатива: `instant-fix.php` (уже написан, содержит весь код)
-
-#### 6.3. Деплой обновлённого `rovlex-admin-portal`
-
-1. Заменить файлы на сервере обновлёнными версиями (с исправлениями из Фазы 2-3)
-2. Проверить синтаксис: `php -l rovlex-admin-portal.php`
-
-#### 6.4. Настройка Listeo
-
-1. Убедиться что Listeo позволяет frontend submission листингов
-2. Убедиться что хуки `save_post_listing` и `listeo_after_submit_listing` работают
-3. Настроить шаблон листинга чтобы отображал Staff & Services таб
-
-#### 6.5. Настройка крона
-
-```bash
-# Проверить что WordPress cron работает:
-wp cron event list --allow-root
-
-# Если нет — добавить системный cron:
-*/15 * * * * wget -q -O /dev/null https://test.rovlex.com/wp-cron.php
+Stripe Connect:
+  - Каждый owner подключает свой Stripe аккаунт
+  - Комиссия ROVLEX: 10-25% автоматически
+  - Выплаты мастерам: через Stripe Connect payouts
 ```
 
-**Результат:** Оба плагина работают на одном сервере.
+### 7.3. Производительность
+
+- [ ] Установить кэширование (Redis или WP Super Cache)
+- [ ] Оптимизировать изображения (ShortPixel или Imagify)
+- [ ] Включить GZIP compression
+- [ ] Настроить CDN (CloudFlare)
+- [ ] Оптимизировать SQL-запросы в изоляции (кэширование location_ids)
+- [ ] Transient-кэширование для staff/services HTML на листинге
+
+### 7.4. Мониторинг
+
+- [ ] Логирование ошибок обоих плагинов
+- [ ] Мониторинг крона (timestamp последней синхронизации)
+- [ ] UptimeRobot для мониторинга доступности
+- [ ] Ежедневные бэкапы БД + файлов
+
+### 7.5. SEO и аналитика
+
+- [ ] Yoast SEO или RankMath
+- [ ] Google Analytics 4
+- [ ] Google Search Console
+- [ ] Schema.org разметка для салонов (LocalBusiness)
+
+**Результат:** Система готова к продакшну.
 
 ---
 
-### Фаза 7: Продакшн-подготовка
+## Порядок выполнения и зависимости
 
-#### 7.1. Безопасность
+```
+Фаза 0: Сервер           ──┐
+                            ├─→ Фаза 1: WordPress + Listeo + Amelia
+                            │
+                            ├─→ Фаза 2: rovlex-admin-portal ──┐
+                            │                                  ├─→ Фаза 4: Интеграция ──→ Фаза 5 ──→ Фаза 6 ──→ Фаза 7
+                            └─→ Фаза 3: rovlex-amelia-bridge ─┘
+```
 
-- [ ] Убрать все debug-файлы (`instant-fix.php`, `auto-deploy.php`, `deploy-web.php`)
-- [ ] Проверить что `wp-config.php` имеет `WP_DEBUG = false`
-- [ ] Убедиться что файлы `.backup` удалены
-- [ ] Проверить permissions файлов (644 для файлов, 755 для директорий)
-- [ ] Убедиться что `X-Frame-Options: SAMEORIGIN` установлен (уже в admin-portal)
-
-#### 7.2. Производительность
-
-- [ ] Проверить что крон не создаёт дублирующие задачи
-- [ ] Оптимизировать SQL-запросы в `class-data-isolation.php` (кэширование location_ids)
-- [ ] Добавить transient-кэширование для staff/services HTML
-
-#### 7.3. Мониторинг
-
-- [ ] Логирование ошибок (оба плагина уже используют `error_log()`)
-- [ ] Проверка что крон работает (timestamp последней синхронизации)
-- [ ] Алерты при ошибках создания локации
-
-#### 7.4. Документация
-
-- [ ] Обновить README с инструкцией по установке обоих плагинов
-- [ ] Написать руководство владельца салона (как создать листинг, добавить мастеров)
-- [ ] Написать FAQ (частые проблемы и их решения)
+**Фазы 2 и 3 можно разрабатывать параллельно**, так как плагины независимы друг от друга до момента интеграции (Фаза 4).
 
 ---
 
-## Приоритеты
+## Оценка объёма работ
 
-| Приоритет | Фаза | Что делать | Блокирует |
-|---|---|---|---|
-| **КРИТИЧЕСКИЙ** | 0 | Перенести код в репозиторий | Всё остальное |
-| **ВЫСОКИЙ** | 1 | Выбрать базу (модульная версия) | Фазы 2-6 |
-| **ВЫСОКИЙ** | 2 | Исправить баги (пароли, привязка) | Фаза 5 |
-| **ВЫСОКИЙ** | 3 | Интегрировать мост с порталом | Фаза 5 |
-| **СРЕДНИЙ** | 4 | Доработать отображение на листинге | Фаза 5 |
-| **ВЫСОКИЙ** | 5 | Тестирование E2E | Фаза 6 |
-| **СРЕДНИЙ** | 6 | Деплой на единый сервер | Фаза 7 |
-| **НИЗКИЙ** | 7 | Продакшн-подготовка | — |
+| Фаза | Описание | Файлов кода |
+|---|---|---|
+| 0 | Сервер | 0 (конфигурация) |
+| 1 | WordPress + Listeo + Amelia | 0 (установка) |
+| 2 | rovlex-admin-portal | ~15 файлов (~900 строк PHP + CSS + JS) |
+| 3 | rovlex-amelia-bridge | ~10 файлов (~600 строк PHP + CSS + JS) |
+| 4 | Интеграция | ~2 файла (доработки в существующих) |
+| 5 | Контент | 0 (настройка через UI) |
+| 6 | Тестирование | 0 (ручное тестирование) |
+| 7 | Продакшн | 0 (конфигурация) |
 
----
-
-## Риски
-
-| Риск | Вероятность | Влияние | Митигация |
-|---|---|---|---|
-| Код на сервере отличается от описания в summary | Высокая | Высокое | Скачать и проверить каждый файл |
-| Хуки Amelia изменились в новой версии | Средняя | Высокое | Проверить версию Amelia, прочитать changelog |
-| Listeo-хуки не срабатывают на frontend submission | Средняя | Высокое | Протестировать создание листинга, добавить fallback-хуки |
-| Два плагина конфликтуют при одновременной активации | Низкая | Среднее | Уникальные префиксы (rovlex_ap_ и rovlex_ab_) |
-| Крон WordPress не работает без внешнего триггера | Средняя | Среднее | Настроить системный cron |
+**Итого кастомного кода:** ~25 файлов, ~1500 строк.
 
 ---
 
-## Вопросы, требующие решения
+## Известные технические нюансы
 
-1. **Регистрация владельца:** Через кастомную форму (текущее) или через Listeo registration? Если через Listeo — нужна ли отдельная регистрация вообще?
+### 1. Хеширование паролей
+WordPress и Amelia используют разные алгоритмы:
+- WordPress: `wp_hash_password()` → `$wp$2y$10$...`
+- Amelia: `password_hash()` → `$2y$10$...`
 
-2. **Один сервер или два?** Рекомендую один (`test_rovlex__usr39`), но нужно подтверждение.
+При регистрации нужно создавать два хеша — один для WP, другой для Amelia.
 
-3. **Версия Amelia:** Какая версия установлена? Хуки фильтров (`amelia_get_*_filter`) доступны только в Pro-версии.
+### 2. Amelia Pro хуки
+Фильтры типа `amelia_get_employees_filter` доступны только в Pro-версии. Нужна именно Pro.
 
-4. **Версия Listeo:** Какая версия? Хуки `listeo_after_submit_listing` и `listeo_submit_redirect` могут отличаться.
+### 3. Listeo frontend submission
+Хук `save_post_listing` срабатывает и при draft, и при publish. Нужно проверять `post_status === 'publish'`.
 
-5. **SSH-доступ:** Есть ли SSH-доступ к серверу для скачивания кода плагинов?
+### 4. WP Cron
+По умолчанию WP Cron работает только при визите на сайт. Для надёжной 15-минутной синхронизации нужен системный cron.
 
-6. **Мульти-салон:** Один владелец = один салон? Или владелец может создать несколько салонов (листингов)?
+### 5. Multi-salon
+Текущая архитектура: один owner = один салон (одна локация). Для поддержки нескольких салонов у одного owner-а нужно хранить массив location_ids. Это можно добавить позже.
 
 ---
 
-**Автор:** Claude (интеграционный план)
-**Дата:** 16 февраля 2026
+## Вопросы перед стартом
+
+1. **Сервер готов?** Есть ли уже VDS/VPS с SSH-доступом, или нужно арендовать?
+2. **Лицензии куплены?** Listeo ($69), Amelia Pro ($80/год) — есть?
+3. **Домен:** test.rovlex.com или другой для разработки?
+4. **Платежи:** Stripe Connect нужен сразу или после тестирования?
+5. **Мульти-салон:** Один owner = один салон? Или может быть несколько?
+6. **Язык интерфейса:** EN или RU (или мультиязычный)?
+
+---
+
+**Автор:** Claude
+**Дата:** 17 февраля 2026
+**Статус:** План для чистой установки с нуля
