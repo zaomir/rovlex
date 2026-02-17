@@ -40,7 +40,7 @@
 | **PHP** | Не определено (SSH недоступен) |
 | **MySQL** | Не определено (SSH недоступен) |
 | **SSL** | Да (HTTPS работает) |
-| **Timezone** | Europe/London |
+| **Timezone** | Europe/Paris (GMT+1) |
 
 **Активная тема:** Listeo 2.0.19 + listeo-child
 
@@ -339,6 +339,155 @@ rovlex-admin-portal/
 1. Кастомная страница логина (`/wp-login.php`) — ROVLEX брендинг
 2. Страница регистрации (`/register-salon/`) — форма: Salon Name, First Name, Last Name, Email, Phone, Address, Password
 3. Модульная архитектура (7 классов)
+
+---
+
+## ДАННЫЕ ИЗ REST API (глубокий аудит)
+
+### Общие настройки сайта
+
+| Параметр | Значение |
+|---|---|
+| **URL** | https://rovlex.com |
+| **Timezone** | Europe/Paris (GMT+1) |
+| **Front Page ID** | 122 (static page) |
+| **Blog Page ID** | 135 |
+| **Аутентификация** | Application Passwords (endpoint: `/wp-admin/authorize-application.php`) |
+
+### Все страницы (Pages)
+
+| ID | Название | Slug | Шаблон |
+|---|---|---|---|
+| 497 | Manager Panel | manager-panel | page-manager-panel.php |
+| 457 | Book an Appointment | book | (default) |
+| 366 | Staff & Services | staff-services | template-dashboard.php |
+| 365 | Master Dashboard | master-dashboard | (default) |
+| 364 | Salon Dashboard | salon-dashboard | (default) |
+| 349 | Store List | store-listing-2 | (default) |
+| 14 | My account | my-account | (default) |
+| 13 | Checkout | checkout | (default) |
+| 12 | Cart | cart | (default) |
+| 11 | Shop | shop | (default) |
+| 2 | Sample Page | sample-page | (default) |
+| 115 | Half Map with Sidebar | half-map-with-sidebar | template-split-map-sidebar.php |
+| 116 | Calendar View | calendar-view-2 | template-dashboard.php |
+| 117 | QR Scan | qr-scan | template-dashboard.php |
+| 118 | Ad Manager | ad-manager | template-dashboard.php |
+| 119 | Home Shop | home-shop | (default) |
+
+> **Ключевые страницы:** Manager Panel, Salon Dashboard, Master Dashboard, Staff & Services — кастомные dashboard-шаблоны для ROVLEX.
+
+### Все листинги (CPT: listing)
+
+| ID | Название | Slug | Категория |
+|---|---|---|---|
+| 458 | saloon44 | saloon44 | — |
+| 402 | 390 | 390 | — |
+| 401 | цв | цв | — |
+| 399 | 3 | 3 | — |
+| 398 | 45 | 45 | — |
+| 397 | 2 | 2-2 | — |
+| 396 | 2 | 2 | — |
+| 395 | 123123 | 123123 | — |
+| 394 | 5555 | 5555 | — |
+| 393 | 33333 | 33333 | — |
+| 392 | 4444 | 4444 | — |
+| 391 | 444 | 444 | — |
+| 390 | 232 | 232 | — |
+| 389 | 23 | 23 | — |
+| 385 | saloon 7 | saloon-7 | — |
+| 384 | saloon6 | saloon6 | — |
+| 383 | saloon5 | saloon5 | — |
+| 381 | saloon4 | saloon4 | Beauty Masters |
+| 378 | saloon3 | saloon3 | — |
+| 376 | Saloon2 | saloon2 | Beauty Masters |
+| 359 | назание | назание | Beauty Masters |
+| 165-176 | Демо-листинги | (различные) | New York, Los Angeles |
+
+> **32+ листинга** — преимущественно тестовые (saloon1-7, числовые). 3 в категории Beauty Masters. Демо-данные Listeo (ID 165-176) присутствуют.
+
+### Категории листингов (listing_category)
+
+| ID | Категория | Подкатегории | Листингов |
+|---|---|---|---|
+| 307 | **Beauty Masters** | Hair, Eyebrows & Lashes, Hair Removal | 3 |
+| 308 | **Handymen** | Cleaning, Doors & Windows, Electrical, Furniture, General Repair | 0 |
+
+### Таксономии
+
+| Таксономия | Тип |
+|---|---|
+| listing_category | Категории листингов (иерарх.) |
+| event_category | Категории событий |
+| service_category | Категории услуг |
+| rental_category | Категории аренды |
+| classifieds_category | Объявления |
+| listing_feature | Фичи листингов |
+| region | Географические регионы |
+| product_cat | Категории товаров WooCommerce |
+| product_brand | Бренды товаров |
+| product_tag | Теги товаров |
+
+### Регионы (region)
+
+| ID | Регион | Родитель |
+|---|---|---|
+| 47 | Alabama | — |
+| 48 | Alaska | — |
+| 49 | Arkansas | — |
+| 50 | Austin | — |
+| 51 | Bangor | — |
+| 52 | Birmingham | Alabama |
+| 53 | Covington | — |
+| 54 | Dallas | — |
+| 55 | Elizabeth | — |
+| 56 | Fairbanks | Alaska |
+
+> Регионы — демо-данные Listeo (US). Необходимо заменить на города/районы Франции.
+
+### Пользователи
+
+| ID | Имя | Slug | Роль |
+|---|---|---|---|
+| 1 | **Rovlex** | rovlex | Super Admin |
+| 3 | **Bebo Master** | bebomybebo-fr | Vendor (Dokan) |
+
+> Только 2 публичных пользователя. Bebo Master — тестовый vendor.
+
+### Dokan Marketplace
+
+| Параметр | Значение |
+|---|---|
+| Вендоров | 1 (Rovlex, ID:1) |
+| Название магазина | Не заполнено |
+| URL магазина | `rovlex.com/rovlex/rovlex/` |
+| Рейтинг | 0 отзывов |
+| Регистрация | 22 января 2026 |
+| Статус | Featured, Trusted |
+| Профиль | Не заполнен (нет описания, часов, контактов) |
+
+> Dokan установлен, но практически не настроен. Один пустой магазин.
+
+### Записи блога (Posts)
+
+| ID | Название | Дата |
+|---|---|---|
+| 111 | Experience In The Spotlight | ~2018 |
+| 112 | 7 Big Ideas For Small Places | ~2018 |
+| 113 | Top 20 Places to Stay in Europe | ~2019 |
+| 114 | The Best Coffee Shops In Sydney | ~2019 |
+
+> Демо-контент Listeo. Реального контента нет.
+
+### Защищённые эндпоинты (требуют авторизацию)
+
+| Endpoint | Статус | Описание |
+|---|---|---|
+| `/wp-json/wp/v2/plugins` | 401 | Список плагинов (нужен admin) |
+| `/wp-json/wp/v2/themes` | 401 | Список тем (нужен admin) |
+| `/wp-json/wc/v3/products` | 401 | Товары WooCommerce (нужен ключ) |
+| `/wp-json/dokan/v1/stores` | Частичный | Только публичные данные |
+| `admin-ajax.php?wpamelia_api` | Пустой | Amelia (нужен nonce+cookie) |
 
 ---
 
